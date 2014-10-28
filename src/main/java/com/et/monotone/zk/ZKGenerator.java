@@ -3,10 +3,12 @@ package com.et.monotone.zk;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.et.monotone.IdGenerator;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Range;
 import com.netflix.curator.RetryPolicy;
 import com.netflix.curator.framework.CuratorFramework;
+import com.netflix.curator.framework.imps.CuratorFrameworkState;
 import com.netflix.curator.framework.recipes.atomic.AtomicValue;
 import com.netflix.curator.framework.recipes.atomic.DistributedAtomicLong;
 import com.netflix.curator.retry.RetryNTimes;
@@ -56,6 +58,10 @@ public class ZKGenerator implements IdGenerator {
 	}
 
 	public static ZKGenerator.Builder newBuilder(CuratorFramework client) {
+		Preconditions.checkNotNull(client, "A curartor client is required");
+		Preconditions.checkArgument(client.getState() == CuratorFrameworkState.STARTED,
+				"A curator client that is started is required");
+		
 		return new Builder(client);
 	}
 
@@ -102,16 +108,22 @@ public class ZKGenerator implements IdGenerator {
 		}
 
 		public Builder setCounterName(String counterName) {
+			Preconditions.checkNotNull(rootPath, "counterName cannot be null");
+			
 			this.counterName = counterName;
 			return this;
 		}
 
 		public Builder setRootPath(String rootPath) {
+			Preconditions.checkNotNull(rootPath, "rootPath cannot be null");
+			
 			this.rootPath = rootPath;
 			return this;
 		}
 
 		public Builder setMaxIdsToFetch(int maxIdsToFetch) {
+			Preconditions.checkArgument(maxIdsToFetch > 0, "maxIdsToFetch needs to be > 0");
+			
 			this.maxIdsToFetch = maxIdsToFetch;
 			return this;
 		}
