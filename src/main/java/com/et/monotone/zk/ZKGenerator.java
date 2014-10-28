@@ -1,8 +1,8 @@
-package com.et.monotone;
+package com.et.monotone.zk;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.google.common.base.Preconditions;
+import com.et.monotone.IdGenerator;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Range;
 import com.netflix.curator.RetryPolicy;
@@ -11,7 +11,7 @@ import com.netflix.curator.framework.recipes.atomic.AtomicValue;
 import com.netflix.curator.framework.recipes.atomic.DistributedAtomicLong;
 import com.netflix.curator.retry.RetryNTimes;
 
-public class ZKGenerator {
+public class ZKGenerator implements IdGenerator {
 	private final static int MAX_ATTEMPTS = 5;
 	private Range<Long> idRange;
 	private final AtomicLong idCounter;
@@ -38,7 +38,8 @@ public class ZKGenerator {
 			Throwables.propagate(e);
 		}
 	}
-
+	
+	@Override
 	public long nextId() {
 		if (idCounter.get() == 0) {
 			refreshAndSetNewRange();
@@ -112,7 +113,7 @@ public class ZKGenerator {
 			return this;
 		}
 
-		public ZKGenerator build() {
+		public IdGenerator build() {
 			return new ZKGenerator(client, rootPath, counterName, maxIdsToFetch);
 		}
 	}
