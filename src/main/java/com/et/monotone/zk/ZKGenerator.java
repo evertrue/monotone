@@ -3,6 +3,7 @@ package com.et.monotone.zk;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.et.monotone.IdGenerator;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Range;
@@ -20,13 +21,12 @@ public class ZKGenerator implements IdGenerator {
 	private int maxIdsToFetch;
 	private DistributedAtomicLong zkCounter;
 
-	private ZKGenerator(CuratorFramework client, String rootPath, String counterName, int maxIdsToFetch) {
+	private ZKGenerator(DistributedAtomicLong zkCounter, String rootPath, String counterName, int maxIdsToFetch) {
 		this.idCounter = new AtomicLong(0);
 		this.idRange = Range.closedOpen(0l, 0l);
 		this.maxIdsToFetch = maxIdsToFetch;
 
-		RetryPolicy policy = new RetryNTimes(1, 100);
-		this.zkCounter = new DistributedAtomicLong(client, rootPath + "/" + counterName, policy);
+		this.zkCounter = zkCounter;
 
 		initValueIfNeeded();
 	}
@@ -61,7 +61,7 @@ public class ZKGenerator implements IdGenerator {
 		Preconditions.checkNotNull(client, "A curartor client is required");
 		Preconditions.checkArgument(client.getState() == CuratorFrameworkState.STARTED,
 				"A curator client that is started is required");
-		
+
 		return new Builder(client);
 	}
 
@@ -102,6 +102,7 @@ public class ZKGenerator implements IdGenerator {
 		private String rootPath = "/monotone/id_gen";
 		private String counterName = "default";
 		private CuratorFramework client;
+		private DistributedAtomicLong zkCounter;
 
 		public Builder(CuratorFramework client) {
 			this.client = client;
@@ -109,27 +110,38 @@ public class ZKGenerator implements IdGenerator {
 
 		public Builder setCounterName(String counterName) {
 			Preconditions.checkNotNull(rootPath, "counterName cannot be null");
-			
+
 			this.counterName = counterName;
 			return this;
 		}
 
 		public Builder setRootPath(String rootPath) {
 			Preconditions.checkNotNull(rootPath, "rootPath cannot be null");
-			
+
 			this.rootPath = rootPath;
 			return this;
 		}
 
 		public Builder setMaxIdsToFetch(int maxIdsToFetch) {
 			Preconditions.checkArgument(maxIdsToFetch > 0, "maxIdsToFetch needs to be > 0");
-			
+
 			this.maxIdsToFetch = maxIdsToFetch;
 			return this;
 		}
 
+		@VisibleForTesting
+		Builder setDistributedAtomicLong(DistributedAtomicLong zkCounter) {
+			this.zkCounter = zkCounter;
+			return this;
+		}
+
 		public IdGenerator build() {
-			return new ZKGenerator(client, rootPath, counterName, maxIdsToFetch);
+			RetryPolicy policy = new RetryNTimes(1, 100);
+			if (zkCounter == null) {
+				zkCounter = new DistributedAtomicLong(client, rootPath + "/" + counterName, policy);
+			}
+
+			return new ZKGenerator(zkCounter, rootPath, counterName, maxIdsToFetch);
 		}
 	}
 }
