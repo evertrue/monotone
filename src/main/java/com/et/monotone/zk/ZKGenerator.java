@@ -25,7 +25,7 @@ public class ZKGenerator implements IdGenerator {
 
 		RetryPolicy policy = new RetryNTimes(1, 100);
 		this.zkCounter = new DistributedAtomicLong(client, rootPath + "/" + counterName, policy);
-		
+
 		initValueIfNeeded();
 	}
 
@@ -38,7 +38,7 @@ public class ZKGenerator implements IdGenerator {
 			Throwables.propagate(e);
 		}
 	}
-	
+
 	@Override
 	public long nextId() {
 		if (idCounter.get() == 0) {
@@ -82,6 +82,9 @@ public class ZKGenerator implements IdGenerator {
 						return;
 					}
 				}
+
+				throw new RuntimeException("Could not reserve a range due to hitting the max attempts of : "
+						+ MAX_ATTEMPTS + " on CAS based operations");
 			} catch (Exception e) {
 				Throwables.propagate(e);
 			}
