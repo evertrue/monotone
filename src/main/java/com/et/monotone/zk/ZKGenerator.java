@@ -73,18 +73,17 @@ public class ZKGenerator implements IdGenerator {
 
 			try {
 				for (int i = 0; i < MAX_ATTEMPTS; i++) {
-					// Get latest count from ZK counter
-					AtomicValue<Long> val = zkCounter.get();
-					long currentZkCount = val.postValue();
-					long newCount = currentZkCount + maxIdsToFetch;
+					// increment ZK counter
+					AtomicValue<Long> result = zkCounter.add((long) maxIdsToFetch);
 
-					// Increment by maxIdsToFetch and write back
-					AtomicValue<Long> result = zkCounter.compareAndSet(currentZkCount, newCount);
-
-					// after success, update ranges
 					if (result.succeeded()) {
-						idRange = Range.closed(currentZkCount, newCount);
-						idCounter.set(currentZkCount + 1);
+						
+						long endRange = result.postValue();
+						long beginRange = Math.max(1, endRange - maxIdsToFetch);
+						
+						idRange = Range.closedOpen(beginRange, endRange);
+						idCounter.set(beginRange);
+						
 						return;
 					}
 				}
