@@ -15,16 +15,17 @@ import com.netflix.curator.framework.recipes.atomic.DistributedAtomicLong;
 import com.netflix.curator.retry.RetryNTimes;
 
 public class ZKGenerator implements IdGenerator {
-	private final static int MAX_ATTEMPTS = 5;
 	private Range<Long> idRange;
 	private final AtomicLong idCounter;
 	private int maxIdsToFetch;
 	private DistributedAtomicLong zkCounter;
+	private int maxAttempts;
 
-	private ZKGenerator(DistributedAtomicLong zkCounter, String rootPath, String counterName, int maxIdsToFetch) {
+	private ZKGenerator(DistributedAtomicLong zkCounter, String rootPath, String counterName, int maxIdsToFetch, int maxAttempts) {
 		this.idCounter = new AtomicLong(0);
 		this.idRange = Range.closedOpen(0l, 0l);
 		this.maxIdsToFetch = maxIdsToFetch;
+		this.maxAttempts = maxAttempts;
 
 		this.zkCounter = zkCounter;
 
@@ -72,12 +73,11 @@ public class ZKGenerator implements IdGenerator {
 			}
 
 			try {
-				for (int i = 0; i < MAX_ATTEMPTS; i++) {
+				for (int i = 0; i < maxAttempts; i++) {
 					// increment ZK counter
 					AtomicValue<Long> result = zkCounter.add((long) maxIdsToFetch);
 
 					if (result.succeeded()) {
-						
 						long endRange = result.postValue();
 						long beginRange = Math.max(1, endRange - maxIdsToFetch);
 						
@@ -89,7 +89,7 @@ public class ZKGenerator implements IdGenerator {
 				}
 
 				throw new RuntimeException("Could not reserve a range due to hitting the max attempts of : "
-						+ MAX_ATTEMPTS + " on CAS based operations");
+						+ maxAttempts + " on CAS based operations");
 			} catch (Exception e) {
 				Throwables.propagate(e);
 			}
@@ -98,6 +98,7 @@ public class ZKGenerator implements IdGenerator {
 
 	public static class Builder {
 		private int maxIdsToFetch = 1000;
+		private int maxAttempts = 5;
 		private String rootPath = "/monotone/id_gen";
 		private String counterName = "default";
 		private CuratorFramework client;
@@ -127,6 +128,13 @@ public class ZKGenerator implements IdGenerator {
 			this.maxIdsToFetch = maxIdsToFetch;
 			return this;
 		}
+		
+		public Builder setMaxAttempts(int maxAttempts) {
+			Preconditions.checkArgument(maxAttempts > 0, "maxAttempts needs to be > 0");
+
+			this.maxAttempts = maxAttempts;
+			return this;
+		}
 
 		@VisibleForTesting
 		Builder setDistributedAtomicLong(DistributedAtomicLong zkCounter) {
@@ -140,7 +148,7 @@ public class ZKGenerator implements IdGenerator {
 				zkCounter = new DistributedAtomicLong(client, rootPath + "/" + counterName, policy);
 			}
 
-			return new ZKGenerator(zkCounter, rootPath, counterName, maxIdsToFetch);
+			return new ZKGenerator(zkCounter, rootPath, counterName, maxIdsToFetch, maxAttempts);
 		}
 	}
 }

@@ -24,7 +24,11 @@ We wanted to provide a simple solution to this that reused popular infrastructur
 # ZooKeeper Support
 
 ### Details 
-One caveat to be aware of is that this implementation uses compare and set (CAS) operations which opens up the possibility that it will not complete in a desired amount of time or iterations under heavy concurrent load. In the event this happens, an `RuntimeException` is thrown. A way to counteract this would be to increase the `setMaxIdsToFetch` size, resulting in less trips to ZooKeeper to reserve local ranges.
+You may want to tune the `setMaxIdsToFetch` coniguration to your needs as this will dictate how frequent you have to do a write to ZK. 
+
+This implementation has an upper bound to its performance, even with a higher limit on `setMaxIdsToFetch` configured. This is mainly because the implementation does not use sharded counters. This is under consideration for future development.
+
+If `setMaxAttempts` is reached, a `RuntimeException` is thrown. 
 
 ### Dead Simple Example
 ```java
@@ -46,9 +50,10 @@ long nextId = gen.nextId();
 ### Configuration
 |Setting|Default Value|Description|
 |-------|:-------------:|-----------|
-|`setCounterName`|"default"|The name of your counter that will be stored in ZK|
-|`setMaxIdsToFetch`|1000|The number of Id's to reserve for a given local range|
-|`setRootPath`|"/monotone/id_gen"|The root path in ZK where the counter should live|
+|`setCounterName`|"default"|The name of your counter that will be stored in ZK. Cannot be null.|
+|`setMaxIdsToFetch`|1000|The number of Id's to reserve for a given local range. Needs to be greater than 0.|
+|`setRootPath`|"/monotone/id_gen"|The root path in ZK where the counter should live. Cannot be null.|
+|`setMaxAttempts`|5|The number of times an `incr` operation will occur if a failure response is given by ZK. Needs to be greater than 0.|
 
 # Redis Support
 
