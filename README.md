@@ -10,13 +10,13 @@ We wanted to provide a simple solution to this that reused popular infrastructur
 
 # Design
 
-* Monotone is a very simply wrapper around popular storage enginges capable of generating monotonically increasing id's that are not vulnerable to the challenges surrounding coorindated system clocks.
+* Monotone is a very simple wrapper around popular storage enginges capable of generating monotonically increasing id's that are not vulnerable to the challenges surrounding coorindated system clocks.
 
 * Underyling storage engine maven depdencies are scoped to `provided` so as to not pollute your depdendency tree for unused storage engine implementations.
 
 * A clean interface with fluent style builders and no checked exceptions is exposed to your codebase.
 
-* Monotone stores local ranges after it reserves them by incrementing a counter in the underlying storage engine implemtnation via CAS supported operations. This permits fast increments via an `AtomicLong` in your application and only making a network hop when you have exhausted the local range.
+* Monotone stores local ranges after it reserves them by incrementing a counter in the underlying storage engine implemtnation via atomic supported operations. This permits fast increments via a local `AtomicLong` in your application and only making a network hop when you have exhausted the local range.
 
 
 # ZooKeeper Support
