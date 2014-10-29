@@ -30,7 +30,7 @@ public class ZkGeneratorTest {
 	@Test
 	public void test() throws Exception {
 		long ID_SEED = 100;
-		
+
 		CuratorFramework mockCurator = Mockito.mock(CuratorFramework.class);
 		EnsurePath mockEnsurePath = Mockito.mock(EnsurePath.class);
 		DistributedAtomicLong mockZkLong = Mockito.mock(DistributedAtomicLong.class);
@@ -39,17 +39,17 @@ public class ZkGeneratorTest {
 		Mockito.when(mockCurator.getState()).thenReturn(CuratorFrameworkState.STARTED);
 		Mockito.when(mockCurator.newNamespaceAwareEnsurePath(Mockito.anyString())).thenReturn(mockEnsurePath);
 		Mockito.when(mockEnsurePath.excludingLast()).thenReturn(mockEnsurePath);
-		
-		
+
 		Mockito.when(mockZkLong.get()).thenReturn(mockAtomicValue);
 		Mockito.when(mockAtomicValue.postValue()).thenReturn(ID_SEED);
-		Mockito.when(mockZkLong.compareAndSet(Mockito.anyLong(), Mockito.anyLong())).thenReturn(mockAtomicValue);
+		
+		Mockito.when(mockZkLong.add(Mockito.anyLong())).thenReturn(mockAtomicValue);
 		Mockito.when(mockAtomicValue.succeeded()).thenReturn(true);
 
 		ZKGenerator mockGenerator = (ZKGenerator) ZKGenerator.newBuilder(mockCurator)
 				.setDistributedAtomicLong(mockZkLong).build();
 		long id = mockGenerator.nextId();
 
-		Assert.assertTrue(id == ID_SEED + 1);
+		Assert.assertEquals(1, id);
 	}
 }
