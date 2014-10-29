@@ -3,6 +3,8 @@ monotone
 
 A 64 bit monotonically increasing Id generator for distributed databases.
 
+[![Build Status](https://travis-ci.org/evertrue/monotone.svg)](https://travis-ci.org/evertrue/monotone)
+
 # Purpose
 As soon as you make a departure from an RDBMS for record based storage, you find yourself needing to generate Id's for those records as it's no longer afforded to you in most No-Sql stores.
 
