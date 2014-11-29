@@ -29,10 +29,10 @@ public class ZKGenerator implements IdGenerator {
 
 		this.zkCounter = zkCounter;
 
-		initValueIfNeeded();
+		initValueInZkIfNeeded();
 	}
 
-	private void initValueIfNeeded() {
+	private void initValueInZkIfNeeded() {
 		try {
 			if (this.zkCounter.get().postValue() == 0) {
 				this.zkCounter.trySet(0l);
