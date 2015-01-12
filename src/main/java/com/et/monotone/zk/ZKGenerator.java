@@ -14,6 +14,24 @@ import com.netflix.curator.framework.recipes.atomic.AtomicValue;
 import com.netflix.curator.framework.recipes.atomic.DistributedAtomicLong;
 import com.netflix.curator.retry.RetryNTimes;
 
+/**
+ * Full example docs here: https://github.com/evertrue/monotone#zookeeper-support
+ * 
+ * This implementation is configurable as to its performance characteristics. This is driven off of the {@code #maxIdsToFetch}
+ * parameter. This param dictates how many ids to cache in its range before having to reach out to ZK again. 
+ * 
+ * An instance of this class should be constructed for each unique counter you wish to have. If you wanted two counters,
+ * one for <code>User</code> and one for <code>Product</code>, you would construct two instances, each with their own
+ * corresponding counter names. 
+ * 
+ * Once a range has been "leased" by an instance of <code>ZKGenerator</code>, it cannot be obtained again. In other words,
+ * if you instantiate this object, use 5 ids of a 1000, restart your server, 955 of those ids cannot be issued. Given this
+ * behavior, you will not want to fetch too aggressively.
+ * 
+ * This object is thread safe and is intended to be used as a singleton.
+ * 
+ * @author mark
+ */
 public class ZKGenerator implements IdGenerator {
 	private Range<Long> idRange;
 	private final AtomicLong idCounter;
@@ -42,6 +60,13 @@ public class ZKGenerator implements IdGenerator {
 		}
 	}
 
+	/**
+	 * In accordance to the {@link IdGenerator} interface, generates a unique integer in a monotonically increasing
+	 * fashion. This method will first look to see if its local range cache satisfies the id generation before
+	 * doing a more expensive call to ZK which will refresh the local id range cache.
+	 * 
+	 * @return The next unique, monotonically increasing integer for the configured counter name.
+	 */
 	@Override
 	public long nextId() {
 		if (idCounter.get() == 0) {
@@ -108,6 +133,15 @@ public class ZKGenerator implements IdGenerator {
 			this.client = client;
 		}
 
+		/**
+		 * @param counterName The name chosen here will be appended to the {@link #rootPath} to make up a full
+		 * ZK path for storage. If the root path is <code>/id_gen/my_app</code> and your counter name is 
+		 * <code>my_counter</code>, the resolved path will be <code>/id_gen/my_app/my_counter</code>.
+		 * 
+		 * This value cannot be <code>null</code>
+		 * 
+		 * @return
+		 */
 		public Builder setCounterName(String counterName) {
 			Preconditions.checkNotNull(rootPath, "counterName cannot be null");
 
@@ -115,6 +149,11 @@ public class ZKGenerator implements IdGenerator {
 			return this;
 		}
 
+		/**
+		 * @param rootPath The ZK path to be used for your counters. All {@link #counterName}'s will append off this
+		 * path. This value cannot be <code>null</code>.
+		 * @return
+		 */
 		public Builder setRootPath(String rootPath) {
 			Preconditions.checkNotNull(rootPath, "rootPath cannot be null");
 
@@ -122,6 +161,10 @@ public class ZKGenerator implements IdGenerator {
 			return this;
 		}
 
+		/**
+		 * @param maxIdsToFetch How many ids to cache in the local range. Needs to be greater than 0.
+		 * @return
+		 */
 		public Builder setMaxIdsToFetch(int maxIdsToFetch) {
 			Preconditions.checkArgument(maxIdsToFetch > 0, "maxIdsToFetch needs to be > 0");
 
@@ -129,6 +172,11 @@ public class ZKGenerator implements IdGenerator {
 			return this;
 		}
 		
+		/**
+		 * @param maxAttempts The number of attempts to lease a local range from ZK before throwing an exception. 
+		 * Needs to be greater than 0.
+		 * @return
+		 */
 		public Builder setMaxAttempts(int maxAttempts) {
 			Preconditions.checkArgument(maxAttempts > 0, "maxAttempts needs to be > 0");
 
