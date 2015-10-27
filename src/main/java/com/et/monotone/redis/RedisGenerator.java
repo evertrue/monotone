@@ -15,13 +15,15 @@ public class RedisGenerator implements IdGenerator {
 	private int maxIdsToFetch;
 	private Jedis client;
 	private String counterName;
+	private long seed;
 
-	private RedisGenerator(Jedis client, String counterName, int maxIdsToFetch) {
+	private RedisGenerator(Jedis client, String counterName, int maxIdsToFetch, long seed) {
 		this.idCounter = new AtomicLong(0);
 		this.idRange = Range.closedOpen(0l, 0l);
 		this.maxIdsToFetch = maxIdsToFetch;
 		this.client = client;
 		this.counterName = counterName;
+		this.seed = seed;
 
 		nextId();
 	}
@@ -29,7 +31,7 @@ public class RedisGenerator implements IdGenerator {
 	@Override
 	public long nextId() {
 		if (idCounter.get() == 0) {
-			client.set(counterName, "0");
+			client.set(counterName, String.valueOf(seed));
 			refreshAndSetNewRange();
 		}
 
@@ -80,6 +82,7 @@ public class RedisGenerator implements IdGenerator {
 		private int maxIdsToFetch = 1000;
 		private String counterName = "default";
 		private Jedis client;
+		private long seed = 0L;
 
 		public Builder(Jedis client) {
 			this.client = client;
@@ -95,8 +98,13 @@ public class RedisGenerator implements IdGenerator {
 			return this;
 		}
 
+		public Builder setSeed(long seed) {
+			this.seed = seed;
+			return this;
+		}
+
 		public IdGenerator build() {
-			return new RedisGenerator(client, counterName, maxIdsToFetch);
+			return new RedisGenerator(client, counterName, maxIdsToFetch, seed);
 		}
 	}
 }

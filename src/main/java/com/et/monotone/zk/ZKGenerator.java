@@ -39,7 +39,7 @@ public class ZKGenerator implements IdGenerator {
 	private DistributedAtomicLong zkCounter;
 	private int maxAttempts;
 
-	private ZKGenerator(DistributedAtomicLong zkCounter, String rootPath, String counterName, int maxIdsToFetch, int maxAttempts) {
+	private ZKGenerator(DistributedAtomicLong zkCounter, long seed,  String rootPath, String counterName, int maxIdsToFetch, int maxAttempts) {
 		this.idCounter = new AtomicLong(0);
 		this.idRange = Range.closedOpen(0l, 0l);
 		this.maxIdsToFetch = maxIdsToFetch;
@@ -47,13 +47,13 @@ public class ZKGenerator implements IdGenerator {
 
 		this.zkCounter = zkCounter;
 
-		initValueInZkIfNeeded();
+		initValueInZkIfNeeded(seed);
 	}
 
-	private void initValueInZkIfNeeded() {
+	private void initValueInZkIfNeeded(long seed) {
 		try {
 			if (this.zkCounter.get().postValue() == 0) {
-				this.zkCounter.trySet(0l);
+				this.zkCounter.trySet(seed);
 			}
 		} catch (Exception e) {
 			Throwables.propagate(e);
@@ -128,6 +128,7 @@ public class ZKGenerator implements IdGenerator {
 		private String counterName = "default";
 		private CuratorFramework client;
 		private DistributedAtomicLong zkCounter;
+		private long seed = 0L;
 
 		public Builder(CuratorFramework client) {
 			this.client = client;
@@ -184,6 +185,18 @@ public class ZKGenerator implements IdGenerator {
 			return this;
 		}
 
+		/**
+		 * @param seed The initial id to start from if there is no state in ZK.
+		 * Needs to be greater than or equal to 0.
+		 * @return
+		 */
+		public Builder setSeed(long seed) {
+			Preconditions.checkArgument(seed >= 0, "seed needs to be >= 0");
+
+			this.seed = seed;
+			return this;
+		}
+
 		@VisibleForTesting
 		Builder setDistributedAtomicLong(DistributedAtomicLong zkCounter) {
 			this.zkCounter = zkCounter;
@@ -196,7 +209,7 @@ public class ZKGenerator implements IdGenerator {
 				zkCounter = new DistributedAtomicLong(client, rootPath + "/" + counterName, policy);
 			}
 
-			return new ZKGenerator(zkCounter, rootPath, counterName, maxIdsToFetch, maxAttempts);
+			return new ZKGenerator(zkCounter, seed, rootPath, counterName, maxIdsToFetch, maxAttempts);
 		}
 	}
 }
