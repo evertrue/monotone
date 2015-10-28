@@ -5,6 +5,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 import com.google.common.collect.Range;
@@ -80,6 +81,59 @@ public class ZkGeneratorTest {
 			long id = mockGenerator.nextId();
 			Assert.assertTrue(expectedRange.contains(id));
 		}
+	}
+
+	@Test
+	public void testSeededZkGenerator() throws Exception {
+		long SEED = 5;
+		int MAX_IDS_TO_FETCH = 2;
+
+		setupExpectationsForZkClientSetup();
+
+		AtomicValue mockInitialValue = Mockito.mock(AtomicValue.class);
+		Mockito.when(mockInitialValue.postValue()).thenReturn(0L);
+		Mockito.when(mockZkLong.get()).thenReturn(mockInitialValue);
+
+		ZKGenerator mockGenerator = (ZKGenerator) ZKGenerator.newBuilder(mockCurator)
+				.setDistributedAtomicLong(mockZkLong).setMaxIdsToFetch(MAX_IDS_TO_FETCH).setSeed(SEED).build();
+
+		ArgumentCaptor<Long> seedCaptor = ArgumentCaptor.forClass(Long.class);
+		Mockito.verify(mockZkLong).trySet(seedCaptor.capture());
+		long capturedSeed = seedCaptor.getValue();
+
+		Assert.assertEquals(SEED, capturedSeed);
+
+		setupExpectationsForInitialSyncOfRemoteCounter(capturedSeed + MAX_IDS_TO_FETCH);
+		Mockito.when(mockZkLong.add(Mockito.anyLong())).thenReturn(mockAtomicValue);
+		Mockito.when(mockAtomicValue.succeeded()).thenReturn(true);
+
+		long id = mockGenerator.nextId();
+
+		Assert.assertEquals(SEED, id);
+	}
+
+	@Test
+	public void testSeedIsNotUsedIfZkGeneratorHasExistingValue() throws Exception {
+		long EXISTING_VALUE = 7;
+		long SEED = 5;
+		int MAX_IDS_TO_FETCH = 2;
+
+		setupExpectationsForZkClientSetup();
+
+		AtomicValue mockInitialValue = Mockito.mock(AtomicValue.class);
+		Mockito.when(mockInitialValue.postValue()).thenReturn(EXISTING_VALUE);
+		Mockito.when(mockZkLong.get()).thenReturn(mockInitialValue);
+
+		ZKGenerator mockGenerator = (ZKGenerator) ZKGenerator.newBuilder(mockCurator)
+				.setDistributedAtomicLong(mockZkLong).setMaxIdsToFetch(MAX_IDS_TO_FETCH).setSeed(SEED).build();
+
+		setupExpectationsForInitialSyncOfRemoteCounter(EXISTING_VALUE + MAX_IDS_TO_FETCH);
+		Mockito.when(mockZkLong.add(Mockito.anyLong())).thenReturn(mockAtomicValue);
+		Mockito.when(mockAtomicValue.succeeded()).thenReturn(true);
+
+		long id = mockGenerator.nextId();
+
+		Assert.assertEquals(EXISTING_VALUE, id);
 	}
 
 	private void setupExpectationsForZkClientSetup() {
